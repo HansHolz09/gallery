@@ -17,18 +17,23 @@
 package com.google.ai.edge.gallery.ui.common.chat
 
 import android.graphics.Bitmap
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -69,6 +74,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -78,6 +84,7 @@ import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.google.ai.edge.gallery.R
 import com.google.ai.edge.gallery.data.Model
@@ -91,6 +98,10 @@ import com.google.ai.edge.gallery.ui.preview.PreviewModelManagerViewModel
 import com.google.ai.edge.gallery.ui.preview.TASK_TEST1
 import com.google.ai.edge.gallery.ui.theme.GalleryTheme
 import com.google.ai.edge.gallery.ui.theme.customColors
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
+import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.launch
 
 enum class ChatInputType {
@@ -100,9 +111,13 @@ enum class ChatInputType {
 /**
  * Composable function for the main chat panel, displaying messages and handling user input.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalHazeMaterialsApi::class,
+  ExperimentalLayoutApi::class
+)
 @Composable
 fun ChatPanel(
+  paddingTop: Dp,
+  hazeState: HazeState,
   modelManagerViewModel: ModelManagerViewModel,
   task: Task,
   selectedModel: Model,
@@ -217,15 +232,16 @@ fun ChatPanel(
     showErrorDialog = modelInitializationStatus?.status == ModelInitializationStatusType.ERROR
   }
 
-  Column(
-    modifier = modifier.imePadding()
-  ) {
-    Box(contentAlignment = Alignment.BottomCenter, modifier = Modifier.weight(1f)) {
+  var messageBoxHeight by remember { mutableStateOf(0.dp) }
+
+  Box {
+    Box(contentAlignment = Alignment.BottomCenter, modifier = Modifier.fillMaxSize().hazeSource(hazeState)) {
       LazyColumn(
         modifier = Modifier
           .fillMaxSize()
           .nestedScroll(nestedScrollConnection),
         state = listState, verticalArrangement = Arrangement.Top,
+        contentPadding = PaddingValues(top = paddingTop, bottom = messageBoxHeight),
       ) {
         items(messages) { message ->
           val imageHistoryCurIndex = remember { mutableIntStateOf(0) }
@@ -322,7 +338,7 @@ fun ChatPanel(
                   }
                 }
                 Box(
-                  modifier = messageBubbleModifier,
+                  modifier = messageBubbleModifier.animateContentSize(),
                 ) {
                   when (message) {
                     // Text
@@ -467,63 +483,69 @@ fun ChatPanel(
       }
     }
 
-    // Chat input
-    when (chatInputType) {
-      ChatInputType.TEXT -> {
+    val paddingBottom by animateDpAsState(with(density) { if (WindowInsets.isImeVisible) WindowInsets.ime.getBottom(density).toDp() else WindowInsets.navigationBars.getBottom(density).toDp() })
+    Box(Modifier.align(Alignment.BottomCenter).padding(bottom = paddingBottom).onGloballyPositioned {
+      messageBoxHeight = with(density) { it.size.height.toDp() } + paddingBottom
+    }) {
+      // Chat input
+      when (chatInputType) {
+        ChatInputType.TEXT -> {
 //        val isLlmTask = task.type == TaskType.LLM_CHAT
 //        val notLlmStartScreen = !(messages.size == 1 && messages[0] is ChatMessagePromptTemplates)
-        MessageInputText(
-          modelManagerViewModel = modelManagerViewModel,
-          curMessage = curMessage,
-          inProgress = uiState.inProgress,
-          isResettingSession = uiState.isResettingSession,
-          modelPreparing = uiState.preparing,
-          hasImageMessage = hasImageMessageToLastConfigChange,
-          modelInitializing = modelInitializationStatus?.status == ModelInitializationStatusType.INITIALIZING,
-          textFieldPlaceHolderRes = task.textInputPlaceHolderRes,
-          onValueChanged = { curMessage = it },
-          onSendMessage = {
-            onSendMessage(selectedModel, it)
-            curMessage = ""
-          },
-          onOpenPromptTemplatesClicked = {
+          MessageInputText(
+            hazeState = hazeState,
+            modelManagerViewModel = modelManagerViewModel,
+            curMessage = curMessage,
+            inProgress = uiState.inProgress,
+            isResettingSession = uiState.isResettingSession,
+            modelPreparing = uiState.preparing,
+            hasImageMessage = hasImageMessageToLastConfigChange,
+            modelInitializing = modelInitializationStatus?.status == ModelInitializationStatusType.INITIALIZING,
+            textFieldPlaceHolderRes = task.textInputPlaceHolderRes,
+            onValueChanged = { curMessage = it },
+            onSendMessage = {
+              onSendMessage(selectedModel, it)
+              curMessage = ""
+            },
+            onOpenPromptTemplatesClicked = {
+              onSendMessage(
+                selectedModel, listOf(
+                  ChatMessagePromptTemplates(
+                    templates = selectedModel.llmPromptTemplates, showMakeYourOwn = false
+                  )
+                )
+              )
+            },
+            onStopButtonClicked = onStopButtonClicked,
+//          showPromptTemplatesInMenu = isLlmTask && notLlmStartScreen,
+            showPromptTemplatesInMenu = false,
+            showImagePickerInMenu = selectedModel.llmSupportImage,
+            showStopButtonWhenInProgress = showStopButtonInInputWhenInProgress,
+          )
+        }
+
+        ChatInputType.IMAGE -> MessageInputImage(
+          disableButtons = uiState.inProgress,
+          streamingMessage = streamingMessage,
+          onImageSelected = { bitmap ->
             onSendMessage(
               selectedModel, listOf(
-                ChatMessagePromptTemplates(
-                  templates = selectedModel.llmPromptTemplates, showMakeYourOwn = false
+                ChatMessageImage(
+                  bitmap = bitmap, imageBitMap = bitmap.asImageBitmap(), side = ChatSide.USER
                 )
               )
             )
           },
-          onStopButtonClicked = onStopButtonClicked,
-//          showPromptTemplatesInMenu = isLlmTask && notLlmStartScreen,
-          showPromptTemplatesInMenu = false,
-          showImagePickerInMenu = selectedModel.llmSupportImage,
-          showStopButtonWhenInProgress = showStopButtonInInputWhenInProgress,
-        )
-      }
-
-      ChatInputType.IMAGE -> MessageInputImage(
-        disableButtons = uiState.inProgress,
-        streamingMessage = streamingMessage,
-        onImageSelected = { bitmap ->
-          onSendMessage(
-            selectedModel, listOf(
-              ChatMessageImage(
+          onStreamImage = { bitmap ->
+            onStreamImageMessage(
+              selectedModel, ChatMessageImage(
                 bitmap = bitmap, imageBitMap = bitmap.asImageBitmap(), side = ChatSide.USER
               )
             )
-          )
-        },
-        onStreamImage = { bitmap ->
-          onStreamImageMessage(
-            selectedModel, ChatMessageImage(
-              bitmap = bitmap, imageBitMap = bitmap.asImageBitmap(), side = ChatSide.USER
-            )
-          )
-        },
-        onStreamEnd = onStreamEnd,
-      )
+          },
+          onStreamEnd = onStreamEnd,
+        )
+      }
     }
   }
 
@@ -595,6 +617,8 @@ fun ChatPanelPreview() {
     val context = LocalContext.current
     val task = TASK_TEST1
     ChatPanel(
+      paddingTop = 0.dp,
+      hazeState = rememberHazeState(),
       modelManagerViewModel = PreviewModelManagerViewModel(context = LocalContext.current),
       task = task,
       selectedModel = TASK_TEST1.models[1],

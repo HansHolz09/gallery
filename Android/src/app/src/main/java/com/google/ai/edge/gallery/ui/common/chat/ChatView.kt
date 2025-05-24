@@ -67,6 +67,10 @@ import com.google.ai.edge.gallery.ui.preview.PreviewChatModel
 import com.google.ai.edge.gallery.ui.preview.PreviewModelManagerViewModel
 import com.google.ai.edge.gallery.ui.preview.TASK_TEST1
 import com.google.ai.edge.gallery.ui.theme.GalleryTheme
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.materials.CupertinoMaterials
+import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
+import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlin.math.absoluteValue
@@ -82,6 +86,7 @@ private const val TAG = "AGChatView"
  * manages model initialization, cleanup, and download status, and handles navigation and system
  * back gestures.
  */
+@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun ChatView(
   task: Task,
@@ -169,6 +174,8 @@ fun ChatView(
     handleNavigateUp()
   }
 
+  val hazeState = rememberHazeState()
+
   Scaffold(modifier = modifier, topBar = {
     ModelPageAppBar(
       task = task,
@@ -178,6 +185,7 @@ fun ChatView(
       isResettingSession = uiState.isResettingSession,
       inProgress = uiState.inProgress,
       modelPreparing = uiState.preparing,
+      modifier = Modifier.hazeEffect(hazeState, CupertinoMaterials.ultraThin()),
       onResetSessionClicked = onResetSessionClicked,
       onConfigChanged = { old, new ->
         viewModel.addConfigChangedMessage(
@@ -207,7 +215,6 @@ fun ChatView(
 
         Column(
           modifier = Modifier
-            .padding(innerPadding)
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface)
         ) {
@@ -218,6 +225,8 @@ fun ChatView(
           // The main messages panel.
           if (curModelDownloadStatus?.status == ModelDownloadStatusType.SUCCEEDED) {
             ChatPanel(
+              paddingTop = innerPadding.calculateTopPadding(),
+              hazeState = hazeState,
               modelManagerViewModel = modelManagerViewModel,
               task = task,
               selectedModel = curSelectedModel,

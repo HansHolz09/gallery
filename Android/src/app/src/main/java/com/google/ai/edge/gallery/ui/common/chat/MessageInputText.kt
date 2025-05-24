@@ -108,6 +108,10 @@ import com.google.ai.edge.gallery.ui.common.createTempPictureUri
 import com.google.ai.edge.gallery.ui.modelmanager.ModelManagerViewModel
 import com.google.ai.edge.gallery.ui.preview.PreviewModelManagerViewModel
 import com.google.ai.edge.gallery.ui.theme.GalleryTheme
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.materials.CupertinoMaterials
+import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import kotlinx.coroutines.launch
 import java.util.concurrent.Executors
 
@@ -119,9 +123,10 @@ private const val TAG = "AGMessageInputText"
  * This function renders a row containing a text field for message input and a send button.
  * It handles message composition, input validation, and sending messages.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalHazeMaterialsApi::class)
 @Composable
 fun MessageInputText(
+  hazeState: HazeState,
   modelManagerViewModel: ModelManagerViewModel,
   curMessage: String,
   isResettingSession: Boolean,
@@ -216,25 +221,13 @@ fun MessageInputText(
       }
     }
 
-    // A plus button to show a popup menu to add stuff to the chat.
-    IconButton(
-      enabled = !inProgress && !isResettingSession,
-      onClick = { showAddContentMenu = true },
-      modifier = Modifier
-        .offset(x = 16.dp)
-        .alpha(0.8f)
-    ) {
-      Icon(
-        Icons.Rounded.Add,
-        contentDescription = "",
-        modifier = Modifier.size(28.dp),
-      )
-    }
     Row(
       modifier = Modifier
         .fillMaxWidth()
         .padding(12.dp)
-        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(28.dp)),
+        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(28.dp))
+        .clip(RoundedCornerShape(28.dp))
+        .hazeEffect(hazeState, CupertinoMaterials.ultraThin()),
       verticalAlignment = Alignment.CenterVertically,
     ) {
       DropdownMenu(
@@ -378,6 +371,20 @@ fun MessageInputText(
         }
       }
       Spacer(modifier = Modifier.width(4.dp))
+    }
+    // A plus button to show a popup menu to add stuff to the chat.
+    IconButton(
+      enabled = !inProgress && !isResettingSession,
+      onClick = { showAddContentMenu = true },
+      modifier = Modifier
+        .offset(x = 16.dp)
+        .alpha(0.8f)
+    ) {
+      Icon(
+        Icons.Rounded.Add,
+        contentDescription = "",
+        modifier = Modifier.size(28.dp),
+      )
     }
   }
 
@@ -648,6 +655,7 @@ fun MessageInputTextPreview() {
   GalleryTheme {
     Column {
       MessageInputText(
+        hazeState = HazeState(),
         modelManagerViewModel = PreviewModelManagerViewModel(context = context),
         curMessage = "hello",
         inProgress = false,
@@ -661,6 +669,7 @@ fun MessageInputTextPreview() {
         showImagePickerInMenu = true,
       )
       MessageInputText(
+        hazeState = HazeState(),
         modelManagerViewModel = PreviewModelManagerViewModel(context = context),
         curMessage = "hello",
         inProgress = false,
@@ -673,6 +682,7 @@ fun MessageInputTextPreview() {
         showStopButtonWhenInProgress = true,
       )
       MessageInputText(
+        hazeState = HazeState(),
         modelManagerViewModel = PreviewModelManagerViewModel(context = context),
         curMessage = "hello",
         inProgress = true,
@@ -684,6 +694,7 @@ fun MessageInputTextPreview() {
         onSendMessage = {},
       )
       MessageInputText(
+        hazeState = HazeState(),
         modelManagerViewModel = PreviewModelManagerViewModel(context = context),
         curMessage = "",
         inProgress = false,
@@ -695,6 +706,7 @@ fun MessageInputTextPreview() {
         onSendMessage = {},
       )
       MessageInputText(
+        hazeState = HazeState(),
         modelManagerViewModel = PreviewModelManagerViewModel(context = context),
         curMessage = "",
         inProgress = true,

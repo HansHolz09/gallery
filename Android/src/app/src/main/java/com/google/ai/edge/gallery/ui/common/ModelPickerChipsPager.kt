@@ -124,7 +124,7 @@ fun ModelPickerChipsPager(
           horizontalArrangement = Arrangement.spacedBy(2.dp),
           modifier = Modifier
             .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(0.75f))
             .clickable {
               modelPickerModel = model
               showModelPicker = true
