@@ -16,6 +16,7 @@
 
 package com.google.ai.edge.gallery.ui.home
 
+import android.os.Build
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -43,6 +44,7 @@ import androidx.compose.material3.MultiChoiceSegmentedButtonRow
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -136,7 +138,7 @@ fun SettingsDialog(
               "Theme",
               style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
             )
-            MultiChoiceSegmentedButtonRow {
+            MultiChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
               THEME_OPTIONS.forEachIndexed { index, label ->
                 SegmentedButton(shape = SegmentedButtonDefaults.itemShape(
                   index = index, count = THEME_OPTIONS.size
@@ -151,6 +153,26 @@ fun SettingsDialog(
                   modelManagerViewModel.saveThemeOverride(label)
                 }, checked = label == selectedTheme, label = { Text(label) })
               }
+            }
+          }
+
+          // Material You switcher.
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically,
+            ) {
+              Text(
+                "Material You",
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+              )
+              Switch(
+                checked = ThemeSettings.useMaterialYou.value,
+                onCheckedChange = {
+                  ThemeSettings.useMaterialYou.value = it
+                }
+              )
             }
           }
 

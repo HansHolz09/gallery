@@ -17,9 +17,12 @@
 package com.google.ai.edge.gallery.ui.theme
 
 import android.app.Activity
+import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -28,6 +31,7 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
@@ -210,12 +214,20 @@ fun GalleryTheme(
 
   StatusBarColorController(useDarkTheme = darkTheme)
 
+  val useMaterialYou = ThemeSettings.useMaterialYou
   val colorScheme = when {
-    darkTheme -> darkScheme
-    else -> lightScheme
+    darkTheme -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && useMaterialYou.value) dynamicDarkColorScheme(LocalContext.current) else darkScheme
+    else -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && useMaterialYou.value) dynamicLightColorScheme(LocalContext.current) else lightScheme
   }
 
-  val customColorsPalette = if (darkTheme) darkCustomColors else lightCustomColors
+  var customColorsPalette = if (darkTheme) darkCustomColors else lightCustomColors
+  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && useMaterialYou.value) {
+    customColorsPalette =
+      customColorsPalette.copy(
+        agentBubbleBgColor = colorScheme.secondaryContainer,
+        userBubbleBgColor = colorScheme.surfaceContainerHighest
+      )
+  }
 
   CompositionLocalProvider(
     LocalCustomColors provides customColorsPalette

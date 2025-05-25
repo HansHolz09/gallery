@@ -24,4 +24,5 @@ const val THEME_DARK = "Dark"
 
 object ThemeSettings {
   val themeOverride = mutableStateOf("")
+  val useMaterialYou = mutableStateOf(false)
 }
