@@ -21,6 +21,7 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.util.Log
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
@@ -28,7 +29,6 @@ import androidx.annotation.StringRes
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,24 +49,27 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.NoteAdd
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.rounded.Error
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ButtonShapes
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FloatingActionButtonMenu
+import androidx.compose.material3.FloatingActionButtonMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ToggleFloatingActionButton
+import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -79,9 +82,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -129,7 +132,7 @@ object HomeScreenDestination {
   val titleRes = R.string.app_name
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun HomeScreen(
   modelManagerViewModel: ModelManagerViewModel,
@@ -139,9 +142,8 @@ fun HomeScreen(
   val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
   val uiState by modelManagerViewModel.uiState.collectAsState()
   var showSettingsDialog by remember { mutableStateOf(false) }
-  var showImportModelSheet by remember { mutableStateOf(false) }
+  var showImportMenu by remember { mutableStateOf(false) }
   var showUnsupportedFileTypeDialog by remember { mutableStateOf(false) }
-  val sheetState = rememberModalBottomSheetState()
   var showImportDialog by remember { mutableStateOf(false) }
   var showImportingDialog by remember { mutableStateOf(false) }
   val selectedLocalModelFileUri = remember { mutableStateOf<Uri?>(null) }
@@ -181,15 +183,50 @@ fun HomeScreen(
       scrollBehavior = scrollBehavior,
     )
   }, floatingActionButton = {
-    // A floating action button to show "import model" bottom sheet.
-    SmallFloatingActionButton(
-      onClick = {
-        showImportModelSheet = true
-      },
-      containerColor = MaterialTheme.colorScheme.secondaryContainer,
-      contentColor = MaterialTheme.colorScheme.secondary,
+    // A floating action button to show "import model" menu.
+    BackHandler(showImportMenu) { showImportMenu = false }
+    FloatingActionButtonMenu(
+      expanded = showImportMenu,
+      button = {
+        ToggleFloatingActionButton(
+          checked = showImportMenu,
+          onCheckedChange = {
+            showImportMenu = !showImportMenu
+          },
+        ) {
+          val imageVector by remember {
+            derivedStateOf {
+              if (checkedProgress > 0.5f) Icons.Filled.Close else Icons.Filled.Add
+            }
+          }
+          Icon(
+            painter = rememberVectorPainter(imageVector),
+            contentDescription = null,
+            modifier = Modifier.animateIcon({ checkedProgress })
+          )
+        }
+      }
     ) {
-      Icon(Icons.Filled.Add, "")
+        FloatingActionButtonMenuItem(
+          onClick = {
+            coroutineScope.launch {
+              // Give it sometime to show the click effect.
+              delay(200)
+              showImportMenu = false
+
+              // Show file picker.
+              val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = "*/*"
+                // Single select.
+                putExtra(Intent.EXTRA_ALLOW_MULTIPLE, false)
+              }
+              filePickerLauncher.launch(intent)
+            }
+          },
+          icon = { Icon(Icons.AutoMirrored.Outlined.NoteAdd, contentDescription = "") },
+          text = { Text("Import model from local file") }
+        )
     }
   }) { innerPadding ->
     Box(contentAlignment = Alignment.BottomCenter, modifier = Modifier.fillMaxSize()) {
@@ -212,47 +249,6 @@ fun HomeScreen(
       modelManagerViewModel = modelManagerViewModel,
       onDismissed = { showSettingsDialog = false },
     )
-  }
-
-  // Import model bottom sheet.
-  if (showImportModelSheet) {
-    ModalBottomSheet(
-      onDismissRequest = { showImportModelSheet = false },
-      sheetState = sheetState,
-    ) {
-      Text(
-        "Import model",
-        style = MaterialTheme.typography.titleLarge,
-        modifier = Modifier.padding(vertical = 4.dp, horizontal = 16.dp)
-      )
-      Box(modifier = Modifier.clickable {
-        coroutineScope.launch {
-          // Give it sometime to show the click effect.
-          delay(200)
-          showImportModelSheet = false
-
-          // Show file picker.
-          val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE)
-            type = "*/*"
-            // Single select.
-            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, false)
-          }
-          filePickerLauncher.launch(intent)
-        }
-      }) {
-        Row(
-          verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.spacedBy(6.dp),
-          modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp)
-        ) {
-          Icon(Icons.AutoMirrored.Outlined.NoteAdd, contentDescription = "")
-          Text("From local model file")
-        }
-      }
-    }
   }
 
   // Import dialog
@@ -453,6 +449,7 @@ private fun TaskList(
   }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun TaskCard(
   task: Task, onClick: () -> Unit, sizeFraction: Float, modifier: Modifier = Modifier
@@ -505,15 +502,11 @@ private fun TaskCard(
     }
   }
 
-  Card(
-    modifier = modifier
-      .clip(RoundedCornerShape(radius.dp))
-      .clickable(
-        onClick = onClick,
-      ),
-    colors = CardDefaults.cardColors(
-      containerColor = getTaskBgColor(task = task)
-    ),
+  Button(
+    onClick = onClick,
+    shapes = ButtonShapes(RoundedCornerShape(radius.dp), RoundedCornerShape(radius.dp / 3)),
+    colors = ButtonDefaults.buttonColors(containerColor = getTaskBgColor(task = task)),
+    contentPadding = PaddingValues(0.dp)
   ) {
     Column(
       modifier = Modifier

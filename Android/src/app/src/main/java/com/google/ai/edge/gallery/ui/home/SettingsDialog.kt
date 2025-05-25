@@ -36,7 +36,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -77,6 +79,7 @@ import kotlin.math.min
 
 private val THEME_OPTIONS = listOf(THEME_AUTO, THEME_LIGHT, THEME_DARK)
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SettingsDialog(
   curThemeOverride: String,
@@ -214,7 +217,9 @@ fun SettingsDialog(
                 onClick = {
                   modelManagerViewModel.clearAccessToken()
                   hfToken = null
-                }, enabled = curHfToken != null
+                },
+                shapes = ButtonDefaults.shapes(),
+                enabled = curHfToken != null
               ) {
                 Text("Clear")
               }
@@ -292,6 +297,7 @@ fun SettingsDialog(
             onClick = {
               onDismissed()
             },
+            shapes = ButtonDefaults.shapes()
           ) {
             Text("Close")
           }
